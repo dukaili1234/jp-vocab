@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#f5efe3">
+<title>日语词汇卡</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="词汇卡">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<style>
+  :root {
+    --bg: #f5efe3;
+    --card: #1f3a5c;
+    --card-inner: #2e4b70;
+    --tag-bg: #f6c9cf;
+    --tag-fg: #2a3e5c;
+    --pink: #f3b8c2;
+    --red: #d9402b;
+    --text: #ffffff;
+    --muted: #c9d4e3;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans", "Microsoft YaHei", "Yu Gothic", sans-serif;
+    color: var(--tag-fg);
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .app { width: 100%; max-width: 420px; padding: calc(16px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; min-height: 100%; }
+
+  /* 顶部栏 */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    border: 1.5px solid var(--card); background: transparent; color: var(--card);
+    padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .chip.active { background: var(--card); color: #fff; }
+  .chips.small .chip { border-width: 1px; padding: 2px 9px; font-size: 12px; font-weight: 500; }
+  .icon-btn { border: none; background: transparent; font-size: 20px; cursor: pointer; color: var(--card); padding: 4px 6px; }
+
+  .stats { font-size: 12px; color: #6b7a90; margin: 10px 0 6px; }
+  .progress-wrap { display: flex; align-items: center; gap: 10px; font-size: 12px; color: #6b7a90; margin-bottom: 14px; }
+  .progress { flex: 1; height: 6px; background: #e4dccb; border-radius: 3px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--red); width: 0; transition: width .3s; }
+
+  /* 卡片 */
+  .stage { flex: 1; display: flex; align-items: flex-start; justify-content: center; }
+  .card {
+    width: 100%; min-height: 380px;
+    background: var(--card); color: var(--text);
+    border-radius: 16px; padding: 22px 22px 26px;
+    box-shadow: 0 10px 28px rgba(31, 58, 92, .25);
+    cursor: pointer; user-select: none;
+    transition: transform .25s ease, opacity .25s ease;
+    touch-action: pan-y;
+  }
+  .card.out-left  { transform: translateX(-120%) rotate(-8deg); opacity: 0; }
+  .card.out-right { transform: translateX(120%) rotate(8deg); opacity: 0; }
+  .card.in { animation: pop .25s ease; }
+  @keyframes pop { from { transform: scale(.94); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .tag {
+    display: inline-block; background: var(--tag-bg); color: var(--tag-fg);
+    font-size: 13px; padding: 3px 9px; border-radius: 4px; font-weight: 600;
+  }
+  .cat { margin-left: 6px; font-size: 12px; color: var(--muted); }
+  .word-row { display: flex; align-items: center; gap: 12px; margin: 18px 0 10px; }
+  .word {
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", "Songti SC", serif;
+    font-size: 40px; font-weight: 800; letter-spacing: 1px; line-height: 1.15; word-break: keep-all;
+  }
+  .word.long { font-size: 30px; }
+  .badge {
+    background: var(--red); color: #fff; font-size: 12px; font-weight: 800;
+    padding: 3px 7px; border-radius: 3px; font-family: Georgia, serif; flex-shrink: 0;
+  }
+  .speak { margin-left: auto; flex-shrink: 0; background: rgba(255,255,255,.12); border: none; color: #fff; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; cursor: pointer; }
+  .meta { color: var(--pink); font-size: 15px; margin-bottom: 8px; }
+  .meta .sep { margin: 0 8px; opacity: .8; }
+  .meaning { font-size: 16px; font-weight: 700; margin-bottom: 18px; line-height: 1.5; }
+  .example {
+    background: var(--card-inner); border-radius: 8px; padding: 10px 14px;
+    font-size: 15px; line-height: 1.7; margin-bottom: 10px;
+  }
+  .example .jp { color: #fff; line-height: 2; }
+  .example .jp b { color: var(--pink); font-weight: 700; }
+  .example rt { font-size: 10px; color: var(--muted); }
+  .example .zh { color: var(--muted); }
+  .rel { font-size: 14px; line-height: 1.7; color: #e8eef6; margin-top: 16px; }
+
+  .hidden-area { transition: opacity .2s; }
+  .card.covered .hidden-area { opacity: 0; pointer-events: none; }
+  .tap-hint { text-align: center; color: var(--muted); font-size: 13px; margin-top: 40px; display: none; }
+  .card.covered .tap-hint { display: block; }
+
+  /* 底部按钮 */
+  .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 18px; }
+  .btn { border: none; border-radius: 12px; padding: 14px 0; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .actions .btn { padding: 10px 0; line-height: 1.3; }
+  .actions .btn small { display: block; font-size: 11px; font-weight: 500; opacity: .75; }
+  .btn.no  { background: #fff; color: var(--red); border: 2px solid var(--red); }
+  .btn.mid { background: #fff; color: var(--card); border: 2px solid var(--card); }
+  .btn.yes { background: var(--card); color: #fff; }
+  .btn:active { transform: scale(.97); }
+  .sub-actions { display: flex; justify-content: space-between; margin-top: 12px; font-size: 13px; }
+  .link { background: none; border: none; color: #6b7a90; cursor: pointer; font-size: 13px; padding: 4px; }
+  .credit { text-align: center; font-size: 11px; color: #a39a88; margin-top: 14px; }
+  .credit a { color: inherit; }
+
+  .done { text-align: center; color: var(--card); padding: 60px 10px; }
+  .done h2 { font-size: 22px; }
+
+  /* 面板 */
+  .panel-mask { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; z-index: 10; }
+  .panel {
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: 100%; max-width: 420px; max-height: 80vh; overflow: auto;
+    background: var(--bg); border-radius: 16px 16px 0 0; padding: 18px; z-index: 11; display: none;
+  }
+  .panel.show, .panel-mask.show { display: block; }
+  .panel h3 { margin: 0 0 12px; color: var(--card); }
+  .list-item { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 4px; border-bottom: 1px solid #e4dccb; font-size: 14px; }
+  .list-item .w { font-weight: 700; color: var(--card); font-size: 16px; }
+  .list-item .r { color: #8a96a8; margin-left: 6px; }
+  .st { font-size: 12px; padding: 2px 8px; border-radius: 999px; flex-shrink: 0; }
+  .st.ok { background: #dfeee0; color: #2f7a3a; }
+  .st.ng { background: #fbe0dc; color: var(--red); }
+  .st.learn { background: #fdf0d5; color: #9a6a10; }
+  .st.new { background: #e6e9ef; color: #6b7a90; }
+  .form label { display: block; font-size: 13px; color: #6b7a90; margin: 8px 0 4px; }
+  .form input, .form select, .search {
+    width: 100%; padding: 9px 10px; border: 1px solid #d8cfbd; border-radius: 8px; font-size: 15px; background: #fff;
+  }
+  .form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form .btn { width: 100%; margin-top: 14px; }
+  .backup { display: flex; gap: 8px; margin-top: 14px; }
+  .backup .btn { flex: 1; padding: 10px 0; font-size: 14px; }
+  .more { text-align: center; color: #8a96a8; font-size: 12px; padding: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="chips" id="levels"></div>
+    <div>
+      <button class="icon-btn" id="btnList" title="单词本">☰</button>
+      <button class="icon-btn" id="btnAdd" title="添加单词">＋</button>
+    </div>
+  </div>
+  <div class="chips small" id="cats"></div>
+
+  <div class="stats" id="stats"></div>
+  <div class="progress-wrap">
+    <div class="progress"><div id="bar"></div></div>
+    <span id="progText">0 / 0</span>
+  </div>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="actions" id="actions">
+    <button class="btn no" data-grade="0">不认识<small></small></button>
+    <button class="btn mid" data-grade="1">模糊<small></small></button>
+    <button class="btn yes" data-grade="2">认识<small></small></button>
+  </div>
+  <div class="sub-actions">
+    <button class="link" id="btnMode">模式：先看单词</button>
+    <button class="link" id="btnSize">每组 20 个</button>
+    <button class="link" id="btnNew">每日新词 20</button>
+  </div>
+  <div class="credit">词库：<a href="https://github.com/firavoyage/_anki-jlpt-decks" target="_blank">蛋卷 JLPT 词库</a>（CC BY-NC 4.0）</div>
+</div>
+
+<div class="panel-mask" id="mask"></div>
+<div class="panel" id="panel"></div>
+
+<script src="words.js"></script>
+<script>
+// ===== 词库 =====
+// words.js 由 tools/build_words.py 生成：[单词, 读音, 词性, 释义, 级别, 分类, [[例句, 译文]...], 反义, 关联, 词源]
+const BUILTIN = (window.WORDS || []).map(([word, reading, pos, meaning, level, cat, exs, ant, rel, origin]) =>
+  ({ word, reading, pos, meaning, level, cat, exs, ant, rel, origin }));
+const CATS = ["全部", "必考", "核心", "真题", "范围外", "我的"];
+const SIZES = [10, 20, 50, 100];
+const NEW_LIMITS = [10, 20, 30, 50, 100];
+// 记忆曲线：到达第 n 阶段后，隔 INTERVALS[n] 天再复习
+const INTERVALS = [1, 1, 2, 4, 7, 15, 30, 60, 120];
+const MASTERED = 5;   // 复习间隔 ≥ 15 天算已掌握
+const DAY = 864e5;
+const today = () => new Date().setHours(0, 0, 0, 0);
+
+// ===== 存储 =====
+const LS = {
+  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
+  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+};
+// 旧版自定义单词是 ex/exZh 字段，统一成 exs
+let custom = LS.get("vocab.custom", []).map(w => ({ cat: "我的", exs: w.ex ? [[w.ex, w.exZh]] : [], ...w }));
+let status = LS.get("vocab.status", {});   // word -> { ok, ng, last: 'ok'|'mid'|'ng', stage, due }
+// 旧版学习记录没有排期：都安排在今天复习
+for (const s of Object.values(status)) if (s.stage == null) { s.stage = s.last === "ok" ? 1 : 0; s.due = today(); }
+let newLog = LS.get("vocab.newLog", { date: 0, n: 0 }); // 今天学了几个新词
+let level  = LS.get("vocab.level", "N2");
+let cat    = LS.get("vocab.cat", "全部");
+let mode   = LS.get("vocab.mode", "cover"); // cover: 先看单词再翻开; open: 直接全显示
+let size   = LS.get("vocab.size", 20);
+let newLimit = LS.get("vocab.newLimit", 20);
+
+const allWords = () => [...BUILTIN, ...custom];
+const pool = () => allWords().filter(w => (level === "全部" || w.level === level) && (cat === "全部" || w.cat === cat));
+let queue = [], idx = 0, groupLen = 0, revealed = false;
+
+const newToday = () => newLog.date === today() ? newLog.n : 0;
+const isDue = w => status[w.word] && status[w.word].due <= Date.now();
+
+// 每组：先复习到期的词（越早到期越先），再补今天额度内的新词；extra = 超出每日额度再学一组
+function buildQueue(extra = false) {
+  const list = pool();
+  const due = list.filter(isDue).sort((a, b) => status[a.word].due - status[b.word].due).slice(0, size);
+  const room = Math.min(size - due.length, extra ? size : Math.max(0, newLimit - newToday()));
+  const fresh = list.filter(w => !status[w.word]).slice(0, room);
+  queue = [...due, ...fresh];
+  idx = 0; groupLen = queue.length;
+  render();
+}
+
+// 不认识：回到第 0 阶段，明天再看；模糊：退一阶；认识：进一阶（新词第一次就认识，进两阶）
+function schedule(s, grade) {
+  const step = s.due == null ? 2 : 1;
+  const stage = grade === 0 ? 0 : grade === 1 ? Math.max(1, s.stage - 1) : Math.min(INTERVALS.length - 1, s.stage + step);
+  return { stage, days: INTERVALS[stage] };
+}
+const fmtDays = d => d <= 1 ? "明天" : d < 30 ? `${d} 天后` : `${Math.round(d / 30)} 个月后`;
+
+// ===== 渲染 =====
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// 例句：{高亮} 和 漢字[かな] 振假名
+const sentence = s => esc(s)
+  .replace(/([0-9０-９一-龯々〆ヵヶ]+)\[([^\]]+)\]/g, "<ruby>$1<rt>$2</rt></ruby>")
+  .replace(/\{(.+?)\}/g, "<b>$1</b>");
+
+function renderFilters() {
+  const lvs = ["N2", "N1", "全部"];
+  $("levels").innerHTML = lvs.map(l => `<button class="chip ${l === level ? "active" : ""}" data-lv="${l}">${l}</button>`).join("");
+  $("cats").innerHTML = CATS.map(c => `<button class="chip ${c === cat ? "active" : ""}" data-cat="${c}">${c}</button>`).join("");
+}
+
+function render() {
+  renderFilters();
+  const list = pool();
+  const learned  = list.filter(w => status[w.word]);
+  const mastered = learned.filter(w => status[w.word].stage >= MASTERED).length;
+  const dueNow   = learned.filter(isDue).length;
+  const fresh    = list.length - learned.length;
+  $("stats").textContent = `今日待复习 ${dueNow} · 今日新词 ${newToday()}/${newLimit} · 学习中 ${learned.length - mastered} · 已掌握 ${mastered} / ${list.length}`;
+  $("progText").textContent = `${Math.min(idx, groupLen)} / ${groupLen}`;
+  $("bar").style.width = groupLen ? (Math.min(idx, groupLen) / groupLen * 100) + "%" : 0;
+  $("btnMode").textContent = mode === "cover" ? "模式：先看单词" : "模式：全部显示";
+  $("btnSize").textContent = `每组 ${size} 个`;
+  $("btnNew").textContent = `每日新词 ${newLimit}`;
+
+  if (idx >= queue.length) {
+    const more = dueNow > 0 || (fresh > 0 && newToday() < newLimit);
+    const tomorrow = learned.filter(w => status[w.word].due < today() + 2 * DAY).length;
+    const btn = (text, extra) => `<button class="btn yes" style="padding:12px 28px;margin-top:10px" onclick="buildQueue(${extra})">${text}</button>`;
+    $("stage").innerHTML = !list.length ? `<div class="done"><p>这个分类下还没有单词</p></div>`
+      : more ? `<div class="done"><h2>🎉 这一组完成啦</h2>
+         <p>还有 <b style="color:var(--red)">${dueNow}</b> 个待复习，今日新词还剩 ${Math.max(0, newLimit - newToday())} 个</p>${btn("下一组", false)}</div>`
+      : `<div class="done"><h2>✅ 今天的任务完成了</h2>
+         <p>明天有 <b style="color:var(--red)">${tomorrow}</b> 个词要复习</p>
+         ${fresh ? btn("再学一组新词", true) : ""}</div>`;
+    $("actions").style.visibility = "hidden";
+    return;
+  }
+  $("actions").style.visibility = "visible";
+  const w = queue[idx];
+  revealed = mode === "open";
+  const meta = [esc(w.reading !== w.word ? w.reading : ""), esc(w.pos), esc(w.origin)].filter(Boolean).join(`<span class="sep">|</span>`);
+  const exs = (w.exs || []).slice(0, 2).map(([jp, zh]) =>
+    `<div class="example"><div class="jp">${sentence(jp)}</div>${zh ? `<div class="zh">${esc(zh)}</div>` : ""}</div>`).join("");
+  const rel = [w.ant && `<div>反义：${esc(w.ant)}</div>`, w.rel && `<div>关联：${esc(w.rel)}</div>`, w.syn && `<div>近义：${esc(w.syn)}</div>`].filter(Boolean).join("");
+  $("stage").innerHTML = `
+    <div class="card in ${revealed ? "" : "covered"}" id="card">
+      <span class="tag">${esc(w.level)} 词汇卡</span><span class="cat">${esc(w.cat)}</span>
+      <div class="word-row">
+        <div class="word ${w.word.length > 6 ? "long" : ""}">${esc(w.word)}</div>
+        <span class="badge">${esc(w.level)}</span>
+        <button class="speak" id="btnSpeak" title="发音">🔊</button>
+      </div>
+      <div class="hidden-area">
+        ${meta ? `<div class="meta">${meta}</div>` : ""}
+        <div class="meaning">${esc(w.meaning)}</div>
+        ${exs}
+        ${rel ? `<div class="rel">${rel}</div>` : ""}
+      </div>
+      <div class="tap-hint">点击卡片查看释义</div>
+    </div>`;
+  // 按钮上提示「下次什么时候复习」
+  const s = status[w.word] || { stage: 0 };
+  document.querySelectorAll("#actions .btn").forEach(b => {
+    const g = +b.dataset.grade;
+    b.querySelector("small").textContent = g === 0 ? "稍后再来" : fmtDays(schedule(s, g).days);
+  });
+  bindCard();
+}
+
+function bindCard() {
+  const card = $("card");
+  card.onclick = e => {
+    if (e.target.id === "btnSpeak") return;
+    revealed = true; card.classList.remove("covered");
+  };
+  $("btnSpeak").onclick = e => { e.stopPropagation(); speak(queue[idx].reading || queue[idx].word); };
+
+  // 左右滑动：左 = 不认识，右 = 认识
+  let sx = null;
+  card.addEventListener("touchstart", e => sx = e.touches[0].clientX, { passive: true });
+  card.addEventListener("touchend", e => {
+    if (sx == null) return;
+    const dx = e.changedTouches[0].clientX - sx; sx = null;
+    if (Math.abs(dx) > 70) answer(dx > 0 ? 2 : 0);
+  });
+}
+
+// grade：0 不认识 / 1 模糊 / 2 认识
+function answer(grade) {
+  const w = queue[idx]; if (!w) return;
+  let s = status[w.word];
+  if (!s) {
+    s = { ok: 0, ng: 0, stage: 0 };
+    newLog = { date: today(), n: newToday() + 1 }; LS.set("vocab.newLog", newLog);
+  }
+  const { stage, days } = schedule(s, grade);
+  grade === 0 ? s.ng++ : s.ok++;
+  Object.assign(s, { stage, due: today() + days * DAY, last: ["ng", "mid", "ok"][grade] });
+  status[w.word] = s; LS.set("vocab.status", status);
+  // 不认识的词，过几张后再出现一次
+  if (grade === 0) queue.splice(Math.min(idx + 4, queue.length), 0, w);
+  $("card").classList.add(grade === 0 ? "out-left" : "out-right");
+  setTimeout(() => { idx++; render(); }, 220);
+}
+
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "ja-JP"; u.rate = 0.9;
+  const v = speechSynthesis.getVoices().find(v => v.lang.startsWith("ja"));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+
+// ===== 面板：单词本 / 添加 =====
+function openPanel(html) { $("panel").innerHTML = html; $("panel").classList.add("show"); $("mask").classList.add("show"); }
+function closePanel() { $("panel").classList.remove("show"); $("mask").classList.remove("show"); }
+
+function showList() {
+  const words = pool();
+  const tag = w => {
+    const s = status[w.word];
+    if (!s) return `<span class="st new">未学</span>`;
+    const next = s.due <= Date.now() ? "今天复习" : fmtDays(Math.round((s.due - today()) / DAY)) + "复习";
+    if (s.stage >= MASTERED) return `<span class="st ok">已掌握 · ${next}</span>`;
+    return `<span class="st ${s.last === "ng" ? "ng" : "learn"}">${next}</span>`;
+  };
+  const LIMIT = 200;
+  openPanel(`<h3>单词本（${level} · ${cat} · ${words.length}）</h3>
+    <input class="search" id="q" placeholder="搜索单词 / 读音 / 中文">
+    <div id="listBody"></div>
+    <div class="backup">
+      <button class="btn mid" id="btnExport">导出学习记录</button>
+      <button class="btn mid" id="btnImport">导入学习记录</button>
+    </div>
+    <button class="link" style="margin-top:12px" id="btnReset">清空学习记录</button>`);
+  const draw = () => {
+    const q = $("q").value.trim();
+    const hit = q ? words.filter(w => w.word.includes(q) || w.reading.includes(q) || w.meaning.includes(q)) : words;
+    $("listBody").innerHTML = hit.slice(0, LIMIT).map(w => `
+      <div class="list-item"><div><span class="w">${esc(w.word)}</span><span class="r">${esc(w.reading)}</span>
+      <div style="color:#6b7a90;font-size:13px">${esc(w.meaning)}</div></div>${tag(w)}</div>`).join("") +
+      (hit.length > LIMIT ? `<div class="more">还有 ${hit.length - LIMIT} 个，输入关键词搜索</div>` : "");
+  };
+  $("q").oninput = draw; draw();
+  $("btnExport").onclick = exportData;
+  $("btnImport").onclick = importData;
+  $("btnReset").onclick = () => { if (confirm("确定清空全部学习记录？")) { status = {}; LS.set("vocab.status", status); closePanel(); buildQueue(); } };
+}
+
+// ===== 备份：学习记录 + 自己加的词 + 设置，存成一个 JSON 文件 =====
+const BACKUP_KEYS = ["vocab.status", "vocab.custom", "vocab.newLog", "vocab.level", "vocab.cat", "vocab.mode", "vocab.size", "vocab.newLimit"];
+
+function exportData() {
+  const data = { app: "jp-vocab", version: 1, time: new Date().toISOString(),
+                 data: Object.fromEntries(BACKUP_KEYS.map(k => [k, LS.get(k, null)])) };
+  const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `词汇卡备份-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function importData() {
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = ".json,application/json";
+  input.onchange = async () => {
+    try {
+      const backup = JSON.parse(await input.files[0].text());
+      if (backup.app !== "jp-vocab" || !backup.data) throw new Error("不是词汇卡的备份文件");
+      const n = Object.keys(backup.data["vocab.status"] || {}).length;
+      if (!confirm(`备份里有 ${n} 个词的学习记录（${backup.time?.slice(0, 10) || "日期未知"}）。
+导入会覆盖当前的记录，确定吗？`)) return;
+      for (const [k, v] of Object.entries(backup.data)) if (BACKUP_KEYS.includes(k) && v != null) LS.set(k, v);
+      location.reload();
+    } catch (err) { alert("导入失败：" + err.message); }
+  };
+  input.click();
+}
+
+function showAdd() {
+  openPanel(`<h3>添加单词</h3><div class="form">
+    <div class="row"><div><label>单词 *</label><input id="f_word" placeholder="値上がり"></div>
+    <div><label>读音 *</label><input id="f_reading" placeholder="ねあがり"></div></div>
+    <div class="row"><div><label>词性</label><input id="f_pos" placeholder="名・自サ"></div>
+    <div><label>级别</label><select id="f_level"><option>N1</option><option selected>N2</option><option>N3</option><option>N4</option><option>N5</option></select></div></div>
+    <label>中文释义 *</label><input id="f_meaning" placeholder="涨价">
+    <label>例句（用 {} 标出要高亮的词）</label><input id="f_ex" placeholder="お米が{値上がり}している。">
+    <label>例句翻译</label><input id="f_exZh" placeholder="大米在涨价。">
+    <div class="row"><div><label>反义</label><input id="f_ant"></div><div><label>近义</label><input id="f_syn"></div></div>
+    <button class="btn yes" id="f_save">保存</button></div>`);
+  $("f_save").onclick = () => {
+    const g = k => $("f_" + k).value.trim();
+    if (!g("word") || !g("reading") || !g("meaning")) return alert("单词、读音、释义必填");
+    custom.push({ word: g("word"), reading: g("reading"), pos: g("pos"), meaning: g("meaning"), level: $("f_level").value,
+                  cat: "我的", exs: g("ex") ? [[g("ex"), g("exZh")]] : [], ant: g("ant"), syn: g("syn") });
+    LS.set("vocab.custom", custom);
+    closePanel(); buildQueue();
+  };
+}
+
+// ===== 事件 =====
+$("levels").onclick = e => { const l = e.target.dataset.lv; if (!l) return; level = l; LS.set("vocab.level", l); buildQueue(); };
+$("cats").onclick = e => { const c = e.target.dataset.cat; if (!c) return; cat = c; LS.set("vocab.cat", c); buildQueue(); };
+$("actions").onclick = e => { const b = e.target.closest("[data-grade]"); if (b) answer(+b.dataset.grade); };
+$("btnNew").onclick = () => { newLimit = NEW_LIMITS[(NEW_LIMITS.indexOf(newLimit) + 1) % NEW_LIMITS.length]; LS.set("vocab.newLimit", newLimit); buildQueue(); };
+$("btnMode").onclick = () => { mode = mode === "cover" ? "open" : "cover"; LS.set("vocab.mode", mode); render(); };
+$("btnSize").onclick = () => { size = SIZES[(SIZES.indexOf(size) + 1) % SIZES.length]; LS.set("vocab.size", size); buildQueue(); };
+$("btnList").onclick = showList;
+$("btnAdd").onclick = showAdd;
+$("mask").onclick = closePanel;
+document.addEventListener("keydown", e => {
+  if ($("panel").classList.contains("show")) return;
+  const grade = { ArrowLeft: 0, ArrowDown: 1, ArrowRight: 2, 1: 0, 2: 1, 3: 2 }[e.key];
+  if (grade != null) answer(grade);
+  else if (e.key === " ") { e.preventDefault(); $("card")?.click(); }
+});
+if ("speechSynthesis" in window) speechSynthesis.getVoices();
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js");
+buildQueue();
+</script>
+</body>
+</html>
