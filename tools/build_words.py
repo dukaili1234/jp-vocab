@@ -23,6 +23,12 @@ def furi(s):
     return re.sub(r" (?=\{|[^ \[\]{}]+\[)", "", s).strip()
 
 
+def sound(s):
+    """[sound:xxx.mp3] → xxx.mp3"""
+    m = re.search(r"\[sound:(.+?)\]", s or "")
+    return m.group(1) if m else ""
+
+
 def pos(p):
     p = re.sub(r"[①-⑳⓪]", "", p)
     return p.replace("動1", "五").replace("動2", "一").replace("動3", "サ")
@@ -46,7 +52,7 @@ for r in csv.reader(lines):
 
     exs, ant, rel = [], [], []
     if r[11]:
-        exs.append([furi(r[12] or r[11]), clean(r[13])])
+        exs.append([furi(r[12] or r[11]), clean(r[13]), sound(r[15])])
     for i in (16, 22, 28):                          # 后面三组：例句 / 対 / 関
         kind, plain, fu, zh = r[i], r[i + 1], r[i + 2], clean(r[i + 3])
         if not plain:
@@ -56,14 +62,14 @@ for r in csv.reader(lines):
         elif kind == "関":
             rel.append(f"{clean(plain)}（{zh}）" if zh else clean(plain))
         else:
-            exs.append([furi(fu or plain), zh])
+            exs.append([furi(fu or plain), zh, sound(r[i + 5])])
 
     words.append([word, reading, pos(clean(r[4])), clean(r[6]), level, cat,
-                  exs, "、".join(ant), "、".join(rel), origin])
+                  exs, "、".join(ant), "、".join(rel), origin, clean(r[3]), sound(r[9])])
 
 with open(out, "w", encoding="utf-8") as f:
     f.write("// 自动生成，勿手改。来源：firavoyage/_anki-jlpt-decks（CC BY-NC 4.0）\n")
-    f.write("// 字段：[单词, 读音, 词性, 释义, 级别, 分类, [[例句, 译文]...], 反义, 关联, 词源]\n")
+    f.write("// 字段：[单词, 读音, 词性, 释义, 级别, 分类, [[例句, 译文, 例句音频]...], 反义, 关联, 词源, 声调, 单词音频]\n")
     f.write("window.WORDS=")
     json.dump(words, f, ensure_ascii=False, separators=(",", ":"))
     f.write(";\n")
