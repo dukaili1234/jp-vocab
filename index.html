@@ -228,13 +228,17 @@
     <button data-dir="zh">中 → 日</button>
     <button data-dir="listen">🎧 听音</button>
   </div>
-  <div class="credit">词库：<a href="https://github.com/firavoyage/_anki-jlpt-decks" target="_blank">蛋卷 JLPT 词库</a>（CC BY-NC 4.0）</div>
+  <div class="credit" id="credit"></div>
 </div>
 
 <div class="panel-mask" id="mask"></div>
 <div class="panel" id="panel"></div>
 
-<script src="words.js"></script>
+<script>
+  // ?db=open 加载可商用词库（预览中），学习记录单独存
+  window.VOCAB_DB = new URLSearchParams(location.search).get("db") === "open" ? "open" : "vocab";
+  document.write(`<script src="${window.VOCAB_DB === "open" ? "words-open.js" : "words.js"}"><\/script>`);
+</script>
 <script src="app.js"></script>
 </body>
 </html>

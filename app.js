@@ -3,7 +3,14 @@
 // [单词, 读音, 词性, 释义, 级别, 分类, [[例句, 译文, 例句音频]...], 反义, 关联, 词源, 声调, 单词音频]
 const BUILTIN = (window.WORDS || []).map(([word, reading, pos, meaning, level, cat, exs, ant, rel, origin, accent, audio]) =>
   ({ word, reading, pos, meaning, level, cat, exs, ant, rel, origin, accent, audio }));
-const CATS = ["全部", "必考", "核心", "真题", "范围外", "我的"];
+const DB = window.VOCAB_DB || "vocab";
+const CATS = ["全部", ...["必考", "核心", "真题", "范围外"].filter(c => BUILTIN.some(w => w.cat === c)), "我的"];
+const LEVELS = ["N2", "N1"].filter(l => BUILTIN.some(w => w.level === l));
+const CREDITS = {
+  vocab: `词库：<a href="https://github.com/firavoyage/_anki-jlpt-decks" target="_blank">蛋卷 JLPT 词库</a>（CC BY-NC 4.0）`,
+  open: `词库：<a href="https://github.com/evanclan/OpenJLPT" target="_blank">OpenJLPT</a>（含 Waller JLPT 词表、JMdict/EDRDG、Tatoeba）+ 原创中文释义 ·
+         <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh-hans" target="_blank">CC BY-SA 4.0</a>`,
+};
 const SIZES = [10, 20, 50, 100];
 const NEW_LIMITS = [10, 20, 30, 50, 100];
 // 记忆曲线：到达第 n 阶段后，隔 INTERVALS[n] 天再复习
@@ -18,8 +25,10 @@ const dayKey = (t = Date.now()) => {
 
 // ===== 存储 =====
 const LS = {
-  get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } },
-  set(k, v) { localStorage.setItem(k, JSON.stringify(v)); },
+  key: k => k.replace(/^vocab\./, DB + "."),     // 不同词库的学习记录分开存
+  get(k, d) { try { return JSON.parse(localStorage.getItem(LS.key(k))) ?? d; } catch { return d; } },
+  set(k, v) { localStorage.setItem(LS.key(k), JSON.stringify(v)); },
+  del(k) { localStorage.removeItem(LS.key(k)); },
 };
 // 旧版自定义单词是 ex/exZh 字段，统一成 exs
 let custom = LS.get("vocab.custom", []).map(w => ({ cat: "我的", exs: w.ex ? [[w.ex, w.exZh]] : [], ...w }));
@@ -28,7 +37,8 @@ let status = LS.get("vocab.status", {});   // word -> { ok, ng, last: 'ok'|'mid'
 for (const s of Object.values(status)) if (s.stage == null) { s.stage = s.last === "ok" ? 1 : 0; s.due = today(); }
 let newLog = LS.get("vocab.newLog", { date: 0, n: 0 }); // 今天学了几个新词
 let daily  = LS.get("vocab.daily", {});    // "2026-11-17" -> { n: 新词, r: 复习, a: 作答次数, ok: 答对次数 }
-let level  = LS.get("vocab.level", "N2");
+let level  = LS.get("vocab.level", LEVELS[0] || "全部");
+if (level !== "全部" && !LEVELS.includes(level)) level = LEVELS[0] || "全部";
 let cat    = LS.get("vocab.cat", "全部");
 let mode   = LS.get("vocab.mode", "cover"); // cover: 先看单词再翻开; open: 直接全显示（只对 日→中 生效）
 let dir    = LS.get("vocab.dir", "jp");     // jp: 日→中 / zh: 中→日 / listen: 听音
@@ -133,7 +143,7 @@ const sentence = s => esc(s)
   .replace(/\{(.+?)\}/g, "<b>$1</b>");
 
 function renderFilters() {
-  const lvs = ["N2", "N1", "全部"];
+  const lvs = LEVELS.length > 1 ? [...LEVELS, "全部"] : LEVELS;
   $("levels").innerHTML = lvs.map(l => `<button class="chip ${l === level ? "active" : ""}" data-lv="${l}">${l}</button>`).join("");
   $("cats").innerHTML = CATS.map(c => `<button class="chip ${c === cat ? "active" : ""}" data-cat="${c}">${c}</button>`).join("");
   document.querySelectorAll("#dirs button").forEach(b => b.classList.toggle("active", b.dataset.dir === dir));
@@ -296,7 +306,7 @@ function showList() {
   $("btnReset").onclick = () => {
     if (!confirm("确定清空全部学习记录？")) return;
     status = {}; daily = {}; newLog = { date: 0, n: 0 };
-    ["vocab.status", "vocab.daily", "vocab.newLog"].forEach(k => localStorage.removeItem(k));
+    ["vocab.status", "vocab.daily", "vocab.newLog"].forEach(LS.del);
     closePanel(); buildQueue();
   };
 }
@@ -374,7 +384,7 @@ function showStats() {
     return { label: ["今", "明"][i] ?? `${dt.getMonth() + 1}/${dt.getDate()}`, date: `${dt.getMonth() + 1}/${dt.getDate()}`, n };
   });
   // 各级别掌握进度
-  const levels = ["N2", "N1"].map(lv => {
+  const levels = LEVELS.map(lv => {
     const ws = BUILTIN.filter(w => w.level === lv);
     const m = ws.filter(w => status[w.word]?.stage >= MASTERED).length;
     const l = ws.filter(w => status[w.word]).length - m;
@@ -443,7 +453,7 @@ const BACKUP_KEYS = ["vocab.status", "vocab.custom", "vocab.newLog", "vocab.dail
                      "vocab.mode", "vocab.dir", "vocab.size", "vocab.newLimit", "vocab.autoplay"];
 
 function exportData() {
-  const data = { app: "jp-vocab", version: 1, time: new Date().toISOString(),
+  const data = { app: "jp-vocab", db: DB, version: 1, time: new Date().toISOString(),
                  data: Object.fromEntries(BACKUP_KEYS.map(k => [k, LS.get(k, null)])) };
   const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
   const a = document.createElement("a");
@@ -460,6 +470,7 @@ function importData() {
     try {
       const backup = JSON.parse(await input.files[0].text());
       if (backup.app !== "jp-vocab" || !backup.data) throw new Error("不是词汇卡的备份文件");
+      if ((backup.db || "vocab") !== DB) throw new Error("这份备份属于另一个词库");
       const n = Object.keys(backup.data["vocab.status"] || {}).length;
       if (!confirm(`备份里有 ${n} 个词的学习记录（${backup.time?.slice(0, 10) || "日期未知"}）。\n导入会覆盖当前的记录，确定吗？`)) return;
       for (const [k, v] of Object.entries(backup.data)) if (BACKUP_KEYS.includes(k) && v != null) LS.set(k, v);
@@ -507,6 +518,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === " ") { e.preventDefault(); $("card")?.click(); }
   else if (e.key === "p" && queue[idx]) playWord(queue[idx]);
 });
+$("credit").innerHTML = CREDITS[DB];
 if ("speechSynthesis" in window) speechSynthesis.getVoices();
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js");
 buildQueue();
