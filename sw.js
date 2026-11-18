@@ -19,10 +19,12 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("fetch", e => {
-  if (e.request.method !== "GET" || new URL(e.request.url).origin !== location.origin) return;
+  const url = new URL(e.request.url);
+  // 发音文件由页面自己存进 audio-cache，这里不重复缓存
+  if (e.request.method !== "GET" || url.origin !== location.origin || url.pathname.includes("/audio/")) return;
   e.respondWith(caches.open(CACHE).then(async cache => {
     const cached = await cache.match(e.request, { ignoreSearch: true });
-    const isPage = e.request.mode === "navigate" || /\.(html|webmanifest)$|\/$|\/app\.js$/.test(new URL(e.request.url).pathname);
+    const isPage = e.request.mode === "navigate" || /\.(html|webmanifest)$|\/$|\/app\.js$/.test(url.pathname);
     if (cached && !isPage) return cached;
     const fresh = fetch(e.request).then(res => {
       if (res.ok) cache.put(e.request, res.clone());

@@ -16,3 +16,8 @@
 - 中文释义和例句翻译：本项目原创
 
 JLPT 官方不公布词汇表，级别划分是社区整理的近似结果。
+
+## 发音
+
+`audio/n2/` 下的单词（`w/<id>.mp3`）和例句（`e/<id>_<序号>.mp3`）发音由 `tools/tts_voicevox.py` 用 [VOICEVOX](https://voicevox.hiroshiba.jp/) 生成，声音是 **VOICEVOX:冥鳴ひまり**。
+按冥鳴ひまり的[使用规定](https://www.meimeihimari.com/terms-of-use)，商用、非商用都可以，使用时必须署名「VOICEVOX:冥鳴ひまり」（App 底部已标注）。

@@ -9,7 +9,8 @@ const LEVELS = ["N2", "N1"].filter(l => BUILTIN.some(w => w.level === l));
 const CREDITS = {
   vocab: `词库：<a href="https://github.com/firavoyage/_anki-jlpt-decks" target="_blank">蛋卷 JLPT 词库</a>（CC BY-NC 4.0）`,
   open: `词库：<a href="https://github.com/evanclan/OpenJLPT" target="_blank">OpenJLPT</a>（含 Waller JLPT 词表、JMdict/EDRDG、Tatoeba）+ 原创中文释义 ·
-         <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh-hans" target="_blank">CC BY-SA 4.0</a>`,
+         <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.zh-hans" target="_blank">CC BY-SA 4.0</a><br>
+         发音：<a href="https://voicevox.hiroshiba.jp/" target="_blank">VOICEVOX</a>:冥鳴ひまり`,
 };
 const SIZES = [10, 20, 50, 100];
 const NEW_LIMITS = [10, 20, 30, 50, 100];
@@ -72,9 +73,11 @@ function schedule(s, grade) {
 }
 const fmtDays = d => d <= 1 ? "明天" : d < 30 ? `${d} 天后` : `${Math.round(d / 30)} 个月后`;
 
-// ===== 发音：真人录音（从原词库仓库读取），读不到就用浏览器朗读 =====
-// 音频不复制到本仓库，直接引用原作者仓库；播放过的存进 Cache，离线也能听
-const AUDIO_BASES = [
+// ===== 发音：读不到音频文件就用浏览器朗读 =====
+// 蛋卷词库：真人录音，不复制到本仓库，直接引用原作者仓库
+// 可商用词库：本仓库 audio/ 下用 VOICEVOX 合成的音频
+// 播放过的存进 Cache，离线也能听
+const AUDIO_BASES = DB === "open" ? ["audio/n2/"] : [
   "https://raw.githubusercontent.com/firavoyage/_anki-jlpt-decks/main/NEW-JLPT/medias/",
   "https://cdn.jsdelivr.net/gh/firavoyage/_anki-jlpt-decks@main/NEW-JLPT/medias/",
 ];
@@ -85,7 +88,7 @@ let playToken = 0, lastBlob = null;
 async function fetchAudio(file) {
   const cache = window.caches && await caches.open(AUDIO_CACHE).catch(() => null);
   for (const base of AUDIO_BASES) {
-    const url = base + encodeURIComponent(file);
+    const url = base + file.split("/").map(encodeURIComponent).join("/");
     const hit = cache && await cache.match(url);
     if (hit) return hit;
     try {
@@ -320,7 +323,7 @@ function showSettings() {
     <div class="set-row"><div class="label">日 → 中 时的显示方式</div>
       ${chips("mode", ["cover", "open"], mode, v => v === "cover" ? "先看单词，点开看释义" : "全部直接显示")}</div>
     <div class="set-row"><div class="label">翻开卡片时自动发音</div>${chips("autoplay", [true, false], autoplay, v => v ? "开" : "关")}
-      <div class="hint">单词是真人录音（大部分来自 NHK），例句是 VOICEPEAK 合成语音，都从原词库仓库读取。听过的会存在本机，之后断网也能听。读取失败时改用浏览器自带朗读。</div></div>
+      <div class="hint">${DB === "open" ? "单词和例句都是 VOICEVOX 合成语音。" : "单词是真人录音（大部分来自 NHK），例句是 VOICEPEAK 合成语音，都从原词库仓库读取。"}听过的会存在本机，之后断网也能听。读取失败时改用浏览器自带朗读。</div></div>
     <div class="set-row"><button class="link" id="btnClearAudio" style="padding:0">清除已缓存的发音</button></div>`);
   $("panel").onclick = async e => {
     const b = e.target.closest("[data-set]");

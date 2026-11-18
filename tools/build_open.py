@@ -6,11 +6,15 @@
   中文释义/例句翻译  data/open/zh-n2.jsonl，本项目原创
   合并后的词库按 CC BY-SA 4.0 发布。
 
-用法: python build_open.py <OpenJLPT 的 n2.json> <中文 jsonl> <输出 words-open.js>
+用法: python build_open.py <OpenJLPT 的 n2.json> <中文 jsonl> <输出 words-open.js> [音频目录 audio/n2]
+      给了音频目录时，存在的 w/<id>.mp3、e/<id>_<序号>.mp3 会写进词条
 """
 import json, re, sys
+from pathlib import Path
 
 src, zh_path, out = sys.argv[1:4]
+audio_dir = Path(sys.argv[4]) if len(sys.argv) > 4 else None
+has_audio = lambda rel: bool(audio_dir) and (audio_dir / rel).exists()
 
 items = json.load(open(src, encoding="utf-8"))
 zh = {}
@@ -124,11 +128,12 @@ for x in items:
     if not z:
         missing.append(x["word"])
         continue
-    exs = [[sentence(e, x), z["ex"][i] if i < len(z["ex"]) else "", ""]
+    exs = [[sentence(e, x), z["ex"][i] if i < len(z["ex"]) else "",
+            f"e/{x['id']}_{i}.mp3" if has_audio(f"e/{x['id']}_{i}.mp3") else ""]
            for i, e in enumerate(x.get("examples", []))]
     reading = x["reading"] if x["reading"] != x["word"] else x["word"]
     words.append([x["word"], reading, pos_label(x.get("pos", [])), z["meaning"], x["level"], "",
-                  exs, "", "", "", "", ""])
+                  exs, "", "", "", "", f"w/{x['id']}.mp3" if has_audio(f"w/{x['id']}.mp3") else ""])
 
 with open(out, "w", encoding="utf-8") as f:
     f.write("// 自动生成，勿手改。CC BY-SA 4.0：OpenJLPT（Waller JLPT 词表、JMdict、Tatoeba）+ 本项目原创中文释义\n")
