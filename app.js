@@ -523,5 +523,10 @@ document.addEventListener("keydown", e => {
 });
 $("credit").innerHTML = CREDITS[DB];
 if ("speechSynthesis" in window) speechSynthesis.getVoices();
-if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js");
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  // 新版缓存接管后刷新一次，免得这次打开还是旧词库（第一次安装时不刷新）
+  if (navigator.serviceWorker.controller)
+    navigator.serviceWorker.addEventListener("controllerchange", () => location.reload(), { once: true });
+  navigator.serviceWorker.register("sw.js");
+}
 buildQueue();
