@@ -47,6 +47,29 @@ let size   = LS.get("vocab.size", 20);
 let newLimit = LS.get("vocab.newLimit", 20);
 let autoplay = LS.get("vocab.autoplay", false);
 
+// ===== 外观：卡片风格（深蓝 / 手账）× 夜间模式（关 / 开 / 跟随系统）=====
+// 存在 ui.* 下，两个词库共用；网址 ?theme=techou 可以临时预览手账风
+let theme = new URLSearchParams(location.search).get("theme") || LS.get("ui.theme", "default");
+let night = LS.get("ui.night", "off");
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+let techouFonts = false;
+
+function applyLook() {
+  document.body.classList.toggle("techou", theme === "techou");
+  document.body.classList.toggle("night", night === "on" || (night === "auto" && darkQuery.matches));
+  // 手机状态栏跟着背景色走
+  document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.body).backgroundColor;
+  if (theme === "techou" && !techouFonts) {      // 手账风的字体用到时才加载
+    techouFonts = true;
+    for (const href of ["https://cdn.jsdelivr.net/npm/@fontsource/klee-one@5.3.1/400.css",
+                        "https://cdn.jsdelivr.net/npm/@fontsource/klee-one@5.3.1/600.css",
+                        "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaigbscreen.css"])
+      document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" href="${href}">`);
+  }
+}
+darkQuery.addEventListener("change", applyLook);
+applyLook();
+
 const allWords = () => [...BUILTIN, ...custom];
 const pool = () => allWords().filter(w => (level === "全部" || w.level === level) && (cat === "全部" || w.cat === cat));
 let queue = [], idx = 0, groupLen = 0, revealed = false;
@@ -191,21 +214,25 @@ function render() {
     `<div class="example">${audio ? `<button class="ex-play" data-play="ex${i}" title="例句发音">🔊</button>` : ""}
       <div class="jp">${sentence(jp)}</div>${zh ? `<div class="zh">${esc(zh)}</div>` : ""}</div>`).join("");
   const rel = [w.ant && `<div>反义：${esc(w.ant)}</div>`, w.rel && `<div>关联：${esc(w.rel)}</div>`, w.syn && `<div>近义：${esc(w.syn)}</div>`].filter(Boolean).join("");
-  const tail = `${exs}${rel ? `<div class="rel">${rel}</div>` : ""}`;
+  const tail = `${exs}${rel ? `<div class="rel"><div class="rel-title">★ 顺便记</div>${rel}</div>` : ""}`;
+  // 手账主题：释义用荧光笔，按单词固定一种颜色（黄 / 粉 / 绿 / 蓝）
+  const hl = [...w.word].reduce((a, c) => a + c.charCodeAt(0), 0) % 4;
+  const meaning = `<span class="hl hl${hl}">${esc(w.meaning)}</span>`;
   const metaHtml = meta ? `<div class="meta">${meta}</div>` : "";
 
   // 三种方向：正面露出什么，翻开后补上什么
   const [front, back, hint] = {
-    jp:     [wordRow, `${metaHtml}<div class="meaning">${esc(w.meaning)}</div>${tail}`, "点击卡片查看释义"],
-    zh:     [`<div class="prompt-zh">${esc(w.meaning)}</div><div class="prompt-pos">${esc(w.pos)}</div>`,
+    jp:     [wordRow, `${metaHtml}<div class="meaning">${meaning}</div>${tail}`, "点击卡片查看释义"],
+    zh:     [`<div class="prompt-zh">${meaning}</div><div class="prompt-pos">${esc(w.pos)}</div>`,
              `${wordRow}${metaHtml}${tail}`, "想一想日语怎么说，再点击卡片"],
     listen: [`<button class="listen-btn" data-play="word" title="再听一遍">🔊</button>`,
-             `${wordRow}${metaHtml}<div class="meaning">${esc(w.meaning)}</div>${tail}`, "听发音想意思，再点击卡片"],
+             `${wordRow}${metaHtml}<div class="meaning">${meaning}</div>${tail}`, "听发音想意思，再点击卡片"],
   }[dir];
 
   $("stage").innerHTML = `
     <div class="card in ${revealed ? "" : "covered"}" id="card">
-      <span class="tag">${esc(w.level)} 词汇卡</span><span class="cat">${esc(w.cat)}</span>
+      <i class="tape tape-l"></i><i class="tape tape-r"></i>
+      <span class="tag"><span class="kicker">日本語ノート </span>${esc(w.level)}<span class="tag-suffix"> 词汇卡</span></span><span class="cat">${esc(w.cat)}</span>
       ${front}
       <div class="hidden-area">${back}</div>
       <div class="tap-hint">${hint}</div>
@@ -318,6 +345,8 @@ function showSettings() {
   const chips = (key, opts, cur, fmt = v => v) =>
     `<div class="chips small">${opts.map(v => `<button class="chip ${v === cur ? "active" : ""}" data-set="${key}" data-val='${JSON.stringify(v)}'>${fmt(v)}</button>`).join("")}</div>`;
   openPanel(`<h3>设置</h3>
+    <div class="set-row"><div class="label">卡片风格</div>${chips("theme", ["default", "techou"], theme, v => v === "techou" ? "手账" : "深蓝")}</div>
+    <div class="set-row"><div class="label">夜间模式</div>${chips("night", ["off", "on", "auto"], night, v => ({ off: "关", on: "开", auto: "跟随系统" })[v])}</div>
     <div class="set-row"><div class="label">每组数量</div>${chips("size", SIZES, size)}</div>
     <div class="set-row"><div class="label">每日新词上限</div>${chips("newLimit", NEW_LIMITS, newLimit)}</div>
     <div class="set-row"><div class="label">日 → 中 时的显示方式</div>
@@ -328,9 +357,15 @@ function showSettings() {
   $("panel").onclick = async e => {
     const b = e.target.closest("[data-set]");
     if (b) {
-      const v = JSON.parse(b.dataset.val);
-      ({ size: () => size = v, newLimit: () => newLimit = v, mode: () => mode = v, autoplay: () => autoplay = v })[b.dataset.set]();
-      LS.set("vocab." + b.dataset.set, v);
+      const k = b.dataset.set, v = JSON.parse(b.dataset.val);
+      if (k === "theme" || k === "night") {        // 外观：只重画，不打乱这一组
+        k === "theme" ? theme = v : night = v;
+        LS.set("ui." + k, v);
+        applyLook(); showSettings(); render();
+        return;
+      }
+      ({ size: () => size = v, newLimit: () => newLimit = v, mode: () => mode = v, autoplay: () => autoplay = v })[k]();
+      LS.set("vocab." + k, v);
       showSettings(); buildQueue();
     } else if (e.target.id === "btnClearAudio" && window.caches) {
       await caches.delete(AUDIO_CACHE); e.target.textContent = "已清除";
@@ -339,8 +374,10 @@ function showSettings() {
 }
 
 // ===== 学习统计 =====
-// 配色已用 dataviz 校验脚本验证（浅色底 #fffdf8）：新词/复习两色通过色盲区分与对比度检查，掌握进度用单色有序色阶
-const C = { fresh: "#d9603f", review: "#2f5f9e", ramp: ["#9cb4d6", "#5a82ba", "#22457a"] };
+// 配色已用 dataviz 校验脚本验证：新词/复习两色通过色盲区分与对比度检查，掌握进度用单色有序色阶
+// 白天按浅色底 #fffdf8 验证；夜间单独一套，按夜间底色 #1b2330（深蓝）和 #26262a（手账）验证，未学最暗、已掌握最亮
+const C_LIGHT = { fresh: "#d9603f", review: "#2f5f9e", ramp: ["#9cb4d6", "#5a82ba", "#22457a"] };
+const C_DARK  = { fresh: "#d96f4c", review: "#5b93dc", ramp: ["#45689c", "#6a98d6", "#a9c8f0"] };
 
 function streak() {
   let n = 0, t = today();
@@ -369,6 +406,7 @@ const table = (head, rows) => `<details class="table"><summary>查看数据表</
   <tr>${head.map(h => `<th>${h}</th>`).join("")}</tr>${rows.map(r => `<tr>${r.map(v => `<td>${v}</td>`).join("")}</tr>`).join("")}</table></details>`;
 
 function showStats() {
+  const C = document.body.classList.contains("night") ? C_DARK : C_LIGHT;
   const t0 = today(), d = daily[dayKey()] || { n: 0, r: 0, a: 0, ok: 0 };
   const learned = Object.values(status);
   const mastered = learned.filter(s => s.stage >= MASTERED).length;

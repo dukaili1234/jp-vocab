@@ -1,0 +1,92 @@
+/* 夜间模式（body.night），深蓝和手账两种卡片风格各一套。
+   图表颜色在 app.js 的 C_DARK 里，已用 dataviz 校验脚本对夜间底色 #1b2330 / #26262a 验证过。 */
+
+/* ===== 深蓝风格 · 夜间 ===== */
+body.night {
+  --bg: #121820;
+  --card: #1f3a5c;
+  --card-inner: #2a4568;
+  background: var(--bg);
+  color: #d5dde8;
+}
+.night .chip { border-color: #3a4c63; color: #b8c6d8; }
+.night .chip.active { background: #2e4b70; border-color: #2e4b70; color: #fff; }
+.night .icon-btn { color: #c9d6e6; }
+.night .stats, .night .progress-wrap, .night .link { color: #8b9ab0; }
+.night .progress { background: #25303d; }
+.night .card { box-shadow: 0 10px 28px rgba(0, 0, 0, .45); }
+.night .btn.no  { background: #1a222d; color: #ef7a62; border-color: #ef7a62; }
+.night .btn.mid { background: #1a222d; color: #c9d6e6; border-color: #5d7da3; }
+.night .btn.yes { background: #2e4b70; }
+.night .seg { background: #1d2631; }
+.night .seg button { color: #8b9ab0; }
+.night .seg button.active { background: #2e4b70; color: #fff; box-shadow: none; }
+.night .credit { color: #6d7686; }
+.night .done { color: #d5dde8; }
+
+/* 面板 */
+.night .panel-mask { background: rgba(0, 0, 0, .55); }
+.night .panel { background: #161d26; color: #d5dde8; }
+.night .panel h3 { color: #e5ebf3; }
+.night .list-item { border-color: #263140; }
+.night .list-item .w { color: #cfe0f5; }
+.night .st.ok { background: #1f3a29; color: #8fd19e; }
+.night .st.ng { background: #43221d; color: #f19a88; }
+.night .st.learn { background: #3d3119; color: #e8c27a; }
+.night .st.new { background: #252e3a; color: #9aa8ba; }
+.night .form label, .night .set-row .hint, .night .more { color: #8b9ab0; }
+.night .form input, .night .form select, .night .search { background: #1d2631; border-color: #2f3b4a; color: #e5ebf3; }
+.night .set-row { border-color: #263140; }
+.night .set-row .label { color: #e5ebf3; }
+
+/* 统计 */
+.night .tile, .night .chart-card { background: #1b2330; }
+.night .tile .v, .night .chart-card h4, .night .col .val, .night .hrow, .night .hrow b { color: #e5ebf3 !important; }
+.night .tile .k, .night .chart-card .sub, .night .hrow .meta2, .night details.table { color: #8b9ab0; }
+.night .legend { color: #aab6c6; }
+.night .plot { border-color: #2f3b4a; }
+.night .xaxis span { color: #7d8a9c; }
+.night .tip { background: #e5ebf3; color: #121820; }
+.night details.table td, .night details.table th { border-color: #263140; }
+
+/* ===== 手账风格 · 夜间：深色方格本 ===== */
+body.techou.night {
+  --paper: #232427;
+  --grid: #2E3034;
+  --margin: #6E3A36;
+  --ink: #E6E0D2;
+  --blue: #A9C8F0;
+  --red: #F08A64;
+  --grey: #9A9384;
+  --dash: #3E4045;
+  background: #18191B;
+  color: var(--ink);
+}
+.techou.night .card { box-shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 22px rgba(0, 0, 0, .45); }
+.techou.night .tape { opacity: .55; }
+.techou.night .hl { --c: rgba(255, 214, 80, .30); }
+.techou.night .hl1 { --c: rgba(240, 140, 170, .32); }
+.techou.night .hl2 { --c: rgba(140, 210, 120, .28); }
+.techou.night .hl3 { --c: rgba(110, 170, 235, .32); }
+.techou.night .example .jp b {
+  background: linear-gradient(transparent 62%, rgba(255, 214, 80, .28) 62%, rgba(255, 214, 80, .28) 92%, transparent 92%);
+}
+.techou.night .rel { background: #4B4226; box-shadow: 2px 3px 0 rgba(0, 0, 0, .35); }
+.techou.night .rel::before { opacity: .55; }
+.techou.night .chip { border-color: var(--dash); color: var(--ink); }
+.techou.night .chip.active {
+  color: var(--blue); border-color: transparent;
+  background: linear-gradient(transparent 35%, rgba(255, 214, 80, .35) 35%, rgba(255, 214, 80, .35) 90%, transparent 90%);
+}
+.techou.night .progress { background: none; }
+.techou.night .progress > div { background: rgba(255, 214, 80, .45); }
+.techou.night .btn.no, .techou.night .btn.mid { background: var(--paper); }
+.techou.night .btn.yes { background: var(--blue); color: #18191B; }
+.techou.night .seg { background: none; }
+.techou.night .seg button.active {
+  background: linear-gradient(transparent 55%, rgba(255, 214, 80, .35) 55%, rgba(255, 214, 80, .35) 92%, transparent 92%);
+  color: var(--ink);
+}
+.techou.night .panel { background: var(--paper); }
+.techou.night .tile, .techou.night .chart-card { background: #26262a; border-color: var(--grid); }
+.techou.night .speak, .techou.night .listen-btn, .techou.night .ex-play { filter: grayscale(1) invert(.85); }
