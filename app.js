@@ -54,18 +54,22 @@ let night = LS.get("ui.night", "off");
 const darkQuery = matchMedia("(prefers-color-scheme: dark)");
 let techouFonts = false;
 
+// 手账风的字体（手机上没有 UD 教科书体和楷体时用）：用到时才加载，手账主题和打卡图都用
+function loadTechouFonts() {
+  if (techouFonts) return;
+  techouFonts = true;
+  for (const href of ["https://cdn.jsdelivr.net/npm/@fontsource/klee-one@5.3.1/400.css",
+                      "https://cdn.jsdelivr.net/npm/@fontsource/klee-one@5.3.1/600.css",
+                      "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaigbscreen.css"])
+    document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" href="${href}">`);
+}
+
 function applyLook() {
   document.body.classList.toggle("techou", theme === "techou");
   document.body.classList.toggle("night", night === "on" || (night === "auto" && darkQuery.matches));
   // 手机状态栏跟着背景色走
   document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.body).backgroundColor;
-  if (theme === "techou" && !techouFonts) {      // 手账风的字体用到时才加载
-    techouFonts = true;
-    for (const href of ["https://cdn.jsdelivr.net/npm/@fontsource/klee-one@5.3.1/400.css",
-                        "https://cdn.jsdelivr.net/npm/@fontsource/klee-one@5.3.1/600.css",
-                        "https://cdn.jsdelivr.net/npm/lxgw-wenkai-screen-webfont@1.7.0/lxgwwenkaigbscreen.css"])
-      document.head.insertAdjacentHTML("beforeend", `<link rel="stylesheet" href="${href}">`);
-  }
+  if (theme === "techou") loadTechouFonts();
 }
 darkQuery.addEventListener("change", applyLook);
 applyLook();
@@ -190,12 +194,15 @@ function render() {
     const more = dueNow > 0 || (fresh > 0 && newToday() < newLimit);
     const tomorrow = learned.filter(w => status[w.word].due < today() + 2 * DAY).length;
     const btn = (text, extra) => `<button class="btn yes" style="padding:12px 28px;margin-top:10px" onclick="buildQueue(${extra})">${text}</button>`;
+    const ck = `<div style="display:flex;gap:10px;justify-content:center;margin-top:12px">
+      <button class="btn mid" style="padding:10px 16px" onclick="showToday()">📖 今天学的词</button>
+      <button class="btn mid" style="padding:10px 16px" onclick="showCheckin()">📷 生成打卡图</button></div>`;
     $("stage").innerHTML = !list.length ? `<div class="done"><p>这个分类下还没有单词</p></div>`
       : more ? `<div class="done"><h2>🎉 这一组完成啦</h2>
-         <p>还有 <b style="color:var(--red)">${dueNow}</b> 个待复习，今日新词还剩 ${Math.max(0, newLimit - newToday())} 个</p>${btn("下一组", false)}</div>`
+         <p>还有 <b style="color:var(--red)">${dueNow}</b> 个待复习，今日新词还剩 ${Math.max(0, newLimit - newToday())} 个</p>${btn("下一组", false)}${ck}</div>`
       : `<div class="done"><h2>✅ 今天的任务完成了</h2>
          <p>明天有 <b style="color:var(--red)">${tomorrow}</b> 个词要复习</p>
-         ${fresh ? btn("再学一组新词", true) : ""}</div>`;
+         ${fresh ? btn("再学一组新词", true) : ""}${ck}</div>`;
     $("actions").style.visibility = "hidden";
     return;
   }
@@ -292,7 +299,8 @@ function answer(grade) {
 
   const { stage, days } = schedule(s, grade);
   grade === 0 ? s.ng++ : s.ok++;
-  Object.assign(s, { stage, due: today() + days * DAY, last: ["ng", "mid", "ok"][grade], day: today() });
+  // at：最后一次作答的时间，「今天学的词」和打卡图按它排先后
+  Object.assign(s, { stage, due: today() + days * DAY, last: ["ng", "mid", "ok"][grade], day: today(), at: s.at && s.day === today() ? s.at : Date.now() });
   status[w.word] = s; LS.set("vocab.status", status);
   // 不认识的词，过几张后再出现一次
   if (grade === 0) queue.splice(Math.min(idx + 4, queue.length), 0, w);
@@ -433,7 +441,10 @@ function showStats() {
   });
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
-  openPanel(`<h3>学习统计</h3>
+  openPanel(`<h3 style="display:flex;justify-content:space-between;align-items:center">学习统计
+      <span style="display:flex;gap:6px">
+        <button class="btn mid" style="padding:6px 10px;font-size:13px" onclick="showToday()">📖 今天学的词</button>
+        <button class="btn mid" style="padding:6px 10px;font-size:13px" onclick="showCheckin()">📷 打卡图</button></span></h3>
     <div class="tiles">
       <div class="tile"><div class="v">🔥 ${streak()} 天</div><div class="k">连续打卡</div></div>
       <div class="tile"><div class="v">${d.n + d.r}</div><div class="k">今天学习（新词 ${d.n} · 复习 ${d.r}）</div></div>
